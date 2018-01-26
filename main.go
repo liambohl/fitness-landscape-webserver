@@ -26,6 +26,7 @@ func main() {
 
 	// Assign the config values to the global config struct
 	config = GetPostgresConfig()
+	connection = DatabaseString(config)
 	
 	// Start the web server
 	http.HandleFunc("/researcher", handleResearcher)
