@@ -33,11 +33,13 @@ func main() {
 
     // Start the web server
     http.HandleFunc("/researcher", handleResearcher)
+    http.HandleFunc("/hello", handleHello)
     http.ListenAndServe(":5000", nil)
 }
 
 
 func handleResearcher(resp http.ResponseWriter, req *http.Request) {
+    fmt.Println("Handling request...")
     var researchers []researcherType
 
     rows := QueryDatabase("SELECT * FROM researcher;")
@@ -57,6 +59,12 @@ func handleResearcher(resp http.ResponseWriter, req *http.Request) {
         fmt.Println(err.Error())
     }
     resp.Write(json)
+}
+
+
+func handleHello(resp http.ResponseWriter, req *http.Request) {
+    fmt.Println("Hello")
+    resp.Write([]byte("Hello, World!"))
 }
 
 
