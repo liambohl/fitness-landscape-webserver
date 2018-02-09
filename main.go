@@ -103,7 +103,13 @@ func handleAuthorship(resp http.ResponseWriter, req *http.Request) {
     fmt.Println("Handling request...")
     var authorships []authorshipType
 
-    rows := QueryDatabase("SELECT * FROM project;")
+    rows := QueryDatabase("
+SELECT project.name AS project, researcher.first_name || researcher.last_name AS auth
+or
+FROM authorship
+INNER JOIN project ON project_id = project.id
+INNER JOIN researcher ON researcher_id = researcher.id
+;")
     defer rows.Close()
     for rows.Next() {
         var authorship authorshipType
