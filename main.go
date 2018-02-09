@@ -21,6 +21,18 @@ type researcherType struct {
     Email       string  `json:"email"`
 }
 
+type projectType struct {
+    Id          int     `json:"id"`
+    Name        string  `json:"Name"`
+    Date        string  `json:"date"`
+}
+
+type authorshipType struct {
+    AuthorName  string  `json:"authorName"`
+    ProjectName string  `json:"projectName"`
+}
+
+
 func main() {
     fmt.Println("Starting")
     // Parse the command line arguments
@@ -32,8 +44,10 @@ func main() {
     connection = DatabaseString(config)
 
     // Start the web server
-    http.HandleFunc("/researcher", handleResearcher)
     http.HandleFunc("/hello", handleHello)
+    http.HandleFunc("/researcher", handleResearcher)
+    http.HandleFunc("/project", handleProject)
+    http.HandleFunc("/authorship", handleAuthorship)
     http.ListenAndServe(":5000", nil)
 }
 
@@ -55,6 +69,52 @@ func handleResearcher(resp http.ResponseWriter, req *http.Request) {
     }
 
     json, err := json.Marshal(&researchers)
+    if err != nil {
+        fmt.Println(err.Error())
+    }
+    resp.Write(json)
+}
+
+
+func handleProject(resp http.ResponseWriter, req *http.Request) {
+    fmt.Println("Handling request...")
+    var projects []projectType
+
+    rows := QueryDatabase("SELECT * FROM project;")
+    defer rows.Close()
+    for rows.Next() {
+        var project projectType
+        err := rows.Scan(&project.Id, &project.Name, &project.Date)
+        if err != nil {
+            fmt.Println("Problem iterating results")
+        }
+        projects = append(projects, project)
+    }
+
+    json, err := json.Marshal(&projects)
+    if err != nil {
+        fmt.Println(err.Error())
+    }
+    resp.Write(json)
+}
+
+
+func handleAuthorship(resp http.ResponseWriter, req *http.Request) {
+    fmt.Println("Handling request...")
+    var authorships []authorshipType
+
+    rows := QueryDatabase("SELECT * FROM project;")
+    defer rows.Close()
+    for rows.Next() {
+        var authorship authorshipType
+        err := rows.Scan(&authorship.AuthorName, &authorship.ProjectName)
+        if err != nil {
+            fmt.Println("Problem iterating results")
+        }
+        authorships = append(authorships, authorship)
+    }
+
+    json, err := json.Marshal(&authorships)
     if err != nil {
         fmt.Println(err.Error())
     }
