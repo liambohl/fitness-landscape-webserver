@@ -3,12 +3,21 @@ package main
 import "database/sql"
 
 
+// Types that implement the rowType interface can be used in returnQueryResults
+// to get the results of a postgres query in JSON.
+// These types should contain fields corresponding to the attributes of each
+// row in the expected query result.
 type rowType interface {
+	
+	// readFrom takes a sql Rows object and scans the current Row into this struct.
 	readFrom(rows *sql.Rows) (rowType, error)
+
+	// getQuery returns the query corresponding to this type.
 	getQuery() (string)
 }
 
 
+// researcherType shows information on all of the researchers in the database.
 type researcherType struct {
     Id          int     `json:"id"`
     FirstName   string  `json:"firstName"`
@@ -24,6 +33,7 @@ func (row researcherType) getQuery() string {
 }
 
 
+// projectType shows information on all of the projects in the database.
 type projectType struct {
     Id          int     `json:"id"`
     Name        string  `json:"Name"`
@@ -38,6 +48,7 @@ func (row projectType) getQuery() string {
 }
 
 
+// authorshipType shows the name of each project with the names of all of its authors.
 type authorshipType struct {
     ProjectName string  `json:"projectName"`
     AuthorName  string  `json:"authorName"`

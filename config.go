@@ -8,6 +8,7 @@ import (
 )
 
 
+// Struct for storing acces information for the postgres database
 type PostgresConfig struct {
     Dbhostname   string     // IP address or fully qualified hostname
     Dbport       string     // The port (usually 5432 for postgres)
@@ -17,7 +18,8 @@ type PostgresConfig struct {
 }
 
 
-// Read the config file and return a PostgresConfig struct
+// GetPostgresConfig reads the config file at configpath, parses it
+// as yaml, and returns a PostgresConfig struct
 func GetPostgresConfig() PostgresConfig {
 
     // Read the raw config file into memory
@@ -26,7 +28,6 @@ func GetPostgresConfig() PostgresConfig {
         fmt.Println(err.Error())
         os.Exit(1) // Quit with exit status 1
     }
-
 
     // Unmarshal the yaml config into a PostgresConfig
     var config PostgresConfig
@@ -40,9 +41,9 @@ func GetPostgresConfig() PostgresConfig {
 }
 
 
-// Return a Postgres connection string
+// DatabaseString takes a struct with all of the database connection information
+// and builds it into a Postgres connection string
 func DatabaseString(c PostgresConfig) string {
-    // return "postgres://" + c.Dbuser + ":" + c.Dbpass + "@" + c.Dbhostname + ":" + c.Dbport + "/" + c.Databasename
     return fmt.Sprintf("host=%s dbname=%s user=%s password=%s sslmode=disable",
         c.Dbhostname, c.Databasename, c.Dbuser, c.Dbpass)
 }

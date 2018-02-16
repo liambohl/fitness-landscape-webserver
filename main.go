@@ -5,7 +5,6 @@ import (
     "encoding/json"
     "flag"
     "database/sql"
-    //_ "github.com/lib/pq"
     _   "github.com/GoogleCloudPlatform/cloudsql-proxy/proxy/dialers/postgres"
 )
 
@@ -16,6 +15,7 @@ var connection string       // username, password, host, etc. to access postgres
 
 func main() {
     fmt.Println("Starting")
+
     // Parse the command line arguments
     flag.StringVar(&configpath, "config", "/etc/app/dbconfig.yaml", "Override the default config file path")
     flag.Parse()
@@ -24,7 +24,7 @@ func main() {
     config = GetPostgresConfig()
     connection = DatabaseString(config)
 
-    // Start the web server
+    // Handle each request
     http.HandleFunc("/hello", handleHello)
     http.HandleFunc("/researcher", func (resp http.ResponseWriter, req *http.Request) {
         returnQueryResults(resp, researcherType{})
@@ -35,16 +35,24 @@ func main() {
     http.HandleFunc("/authorship", func (resp http.ResponseWriter, req *http.Request) {
         returnQueryResults(resp, authorshipType{})
     })
+
+    // Start the web server
     http.ListenAndServe(":5000", nil)
 }
 
 
+// handleHello is a simple handler for debugging.
+// It writes to both the http response and stdout.
 func handleHello(resp http.ResponseWriter, req *http.Request) {
     fmt.Println("Hello")
     resp.Write([]byte("Hello, World!"))
 }
 
 
+// returnQueryResults taks an entry which holds the query and the expected
+// format of each row in the result.
+// It sends the query to the database, marshals the response into JSON, and
+// sends the resultant JSON as an HTTP response.
 func returnQueryResults(resp http.ResponseWriter, entry rowType) {
     query := entry.getQuery()
     rows := QueryDatabase(query)
@@ -68,8 +76,8 @@ func returnQueryResults(resp http.ResponseWriter, entry rowType) {
 }
 
 
-// Function handles database queries
-// Returns false if bad query
+// QueryDatabase opens a connection to the database and returns the result
+// of a given query.
 func QueryDatabase(query string) *sql.Rows {
     fmt.Println("Opening db connection...")
     db, err := sql.Open("cloudsqlpostgres", connection)
@@ -80,14 +88,12 @@ func QueryDatabase(query string) *sql.Rows {
     }
     fmt.Println("Connected to the database")
 
-
     rows, err := db.Query(query)
     if err != nil {
         fmt.Println("Failed to query db")
         fmt.Println(err.Error())
     }
     fmt.Println("Query returned")
-
 
     return rows
 }
