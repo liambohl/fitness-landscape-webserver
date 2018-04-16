@@ -65,4 +65,3 @@ INNER JOIN project ON project_id = project.id
 INNER JOIN researcher ON researcher_id = researcher.id
 ;`
 }
-
