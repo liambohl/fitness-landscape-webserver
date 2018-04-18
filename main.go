@@ -15,8 +15,6 @@ var db *sql.DB               // Database connection
 
 
 func main() {
-    fmt.Println("Starting")
-
     // Parse the command line arguments
     flag.StringVar(&configpath, "config", "/etc/app/dbconfig.yaml", "Override the default config file path")
     flag.Parse()
@@ -24,7 +22,8 @@ func main() {
     // Configure and open database connection
     config = GetPostgresConfig()
     fmt.Println("Opening db connection...")
-    db, err := sql.Open("cloudsqlpostgres", DatabaseString(config))
+    var err error
+    db, err = sql.Open("cloudsqlpostgres", DatabaseString(config))
     defer db.Close()
     if err != nil {
         fmt.Println("Failed to connect to db")
@@ -35,16 +34,19 @@ func main() {
     // Handle each request
     http.HandleFunc("/hello", handleHello)
     http.HandleFunc("/researcher", func (resp http.ResponseWriter, req *http.Request) {
-        returnQueryResults(resp, researcherType{}, db)
+        returnQueryResults(resp, researcherType{})
     })
     http.HandleFunc("/project", func (resp http.ResponseWriter, req *http.Request) {
-        returnQueryResults(resp, projectType{}, db)
+        returnQueryResults(resp, projectType{})
     })
     http.HandleFunc("/authorship", func (resp http.ResponseWriter, req *http.Request) {
-        returnQueryResults(resp, authorshipType{}, db)
+        returnQueryResults(resp, authorshipType{})
     })
     http.HandleFunc("/post/researcher", func (resp http.ResponseWriter, req *http.Request) {
-        handlePostResearcher(resp, req, db)
+        post(resp, req, researcherType{})
+    })
+    http.HandleFunc("/post/project", func (resp http.ResponseWriter, req *http.Request) {
+        post(resp, req, projectType{})
     })
 
     // Start the web server
@@ -64,9 +66,12 @@ func handleHello(resp http.ResponseWriter, req *http.Request) {
 // format of each row in the result.
 // It sends the query to the database, marshals the response into JSON, and
 // sends the resultant JSON as an HTTP response.
-func returnQueryResults(resp http.ResponseWriter, entry rowType, db *sql.DB) {
+func returnQueryResults(resp http.ResponseWriter, entry rowType) {
     query := entry.getQuery()
-    rows := QueryDatabase(query, db)
+    rows := queryDatabase(query, db)
+    if rows == nil {
+        return
+    }
     defer rows.Close()
 
     var entries []interface{}
@@ -87,41 +92,44 @@ func returnQueryResults(resp http.ResponseWriter, entry rowType, db *sql.DB) {
 }
 
 
-// QueryDatabase opens a connection to the database and returns the result
+// queryDatabase opens a connection to the database and returns the result
 // of a given query.
-func QueryDatabase(query string, db *sql.DB) *sql.Rows {
+func queryDatabase(query string, db *sql.DB) *sql.Rows {
     rows, err := db.Query(query)
     if err != nil {
         fmt.Println("Failed to query db")
         fmt.Println(err.Error())
+        return nil
+    } else {
+        fmt.Println("Query returned")
+        return rows
     }
-    fmt.Println("Query returned")
-
-    return rows
 }
 
 
-func handlePostResearcher(resp http.ResponseWriter, req *http.Request, db *sql.DB) {
+func post(resp http.ResponseWriter, req *http.Request, entry rowPostType) {
     // Get POST data
     body, err := ioutil.ReadAll(req.Body)
     if err != nil {
         fmt.Println(err.Error())
+        return
     }
 
-    var entries []researcherType
-    if err := json.Unmarshal(body, &entries); err != nil {
+    entry, err = entry.unmarshal(body)
+    if err != nil {
         fmt.Println(err.Error())
+        return
     }
 
-    for _, entry := range(entries) {
-        query := "INSERT INTO researcher(first_name, last_name, email) VALUES ($1, $2, $3);"
-        _, err := db.Query(query, entry.FirstName, entry.LastName, entry.Email)
-        if err != nil {
-            fmt.Println("Failed to query db")
-            fmt.Println(err.Error())
-        }
-        fmt.Println("Insert executed")
-    }
+    result, err := entry.post(db)
 
-    resp.Write([]byte("Data successfully written\n"))
+    var response string
+    if err != nil {
+        response = fmt.Sprintf("Failed to perform insert:\n%v", err.Error())
+    } else {
+        numRows, _ := result.RowsAffected()
+        response = fmt.Sprintf("Insert executed: %v rows affected", numRows)
+    }
+    fmt.Println(response)
+    resp.Write([]byte(response))
 }

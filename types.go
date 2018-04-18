@@ -1,6 +1,9 @@
 package main
 
-import "database/sql"
+import (
+	"database/sql"
+	"encoding/json"
+)
 
 
 // Types that implement the rowType interface can be used in returnQueryResults
@@ -16,27 +19,45 @@ type rowType interface {
 	getQuery() (string)
 }
 
+type rowPostType interface {
+	rowType
+
+	// post inserts one new row of this type
+	post(db *sql.DB) (sql.Result, error)
+
+	// unmarshal reads a json byte array into a rowPostType
+	unmarshal(data []byte) (rowPostType, error)
+}
+
 
 // researcherType shows information on all of the researchers in the database.
 type researcherType struct {
     Id          int     `json:"id"`
+    Email       string  `json:"email"`
     FirstName   string  `json:"firstName"`
     LastName    string  `json:"lastName"`
-    Email       string  `json:"email"`
 }
 func (row researcherType) readFrom(rows *sql.Rows) (rowType, error) {
-	err := rows.Scan(&row.Id, &row.FirstName, &row.LastName, &row.Email)
+	err := rows.Scan(&row.Id, &row.Email, &row.FirstName, &row.LastName)
 	return row, err
 }
 func (row researcherType) getQuery() string {
 	return "SELECT * FROM researcher;"
+}
+func (row researcherType) post(db *sql.DB) (sql.Result, error) {
+	query := "INSERT INTO researcher(first_name, last_name, email) VALUES ($1, $2, $3);"
+    return db.Exec(query, row.FirstName, row.LastName, row.Email)
+}
+func (row researcherType) unmarshal(data []byte) (rowPostType, error) {
+	err := json.Unmarshal(data, &row)
+	return row, err
 }
 
 
 // projectType shows information on all of the projects in the database.
 type projectType struct {
     Id          int     `json:"id"`
-    Name        string  `json:"Name"`
+    Name        string  `json:"name"`
     Date        string  `json:"date"`
 }
 func (row projectType) readFrom(rows *sql.Rows) (rowType, error) {
@@ -45,6 +66,14 @@ func (row projectType) readFrom(rows *sql.Rows) (rowType, error) {
 }
 func (row projectType) getQuery() string {
 	return "SELECT * FROM project;"
+}
+func (row projectType) post(db *sql.DB) (sql.Result, error) {
+	query := "INSERT INTO project(name, date) VALUES ($1, current_date);"
+    return db.Exec(query, row.Name)
+}
+func (row projectType) unmarshal(data []byte) (rowPostType, error) {
+	err := json.Unmarshal(data, &row)
+	return row, err
 }
 
 
